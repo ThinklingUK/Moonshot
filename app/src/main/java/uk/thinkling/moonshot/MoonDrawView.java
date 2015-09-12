@@ -36,8 +36,8 @@ public class MoonDrawView extends View {
 
     int screenW, screenH, bedH, coinR, startZone;
     int shadoff = 4; //shadow offset TODO - factor of coinR
-    final double gravity = 0, friction = 0.07;
-    final float coinRatio = 0.33f; // bed to radius friction (0.33 is 2 thirds,
+    final double gravity = 0, friction = 0.05; //0.07 is shove
+    final float coinRatio = 0.33f; // bed to radius ratio (0.33 is 2 thirds)
     final float bedSpace=0.8f; // NB: includes end space and free bed before first line.
     int beds=9, maxCoins=5, bedScore=3;
     int coinsLeft = 0, winner = -1;
@@ -99,7 +99,6 @@ public class MoonDrawView extends View {
         } catch (Exception e){
             //Log.e("LOADING PREFS",  e.getMessage());
         }
-
 
         collider = new CollisionManager(w, h, friction, gravity);
 
@@ -175,39 +174,20 @@ public class MoonDrawView extends View {
 
         super.onDraw(canvas);
 
-
-
-
         /*Score's Text*/
         if (coinsLeft >1)
             parent.HighScoreText.setText(pName[playerNum] + " - " + (Math.min(maxCoins,coinsLeft))+" coins");
         else
             parent.HighScoreText.setText(pName[playerNum] + " - Last coin"); //TODO const etc
 
-        //Portsmouth scores
-        // parent.TimeLeftText.setText("P1: "+ score[0][0]);
-        // parent.ScoreText.setText("P2: "+ score[1][0]);
-
-        // beds scored so far counting
-        // parent.TimeLeftText.setText("P1: "+ score[0][beds+1]);
-        // parent.ScoreText.setText("P2: "+ score[1][beds+1]);
-
-
         for (MoveObj obj : objs) {
-            canvas.drawCircle((float) obj.x+shadoff, (float) obj.y+shadoff, coinR, shadowpaint);
-            matrix.reset();
+            obj.draw(canvas);
+           // canvas.drawCircle((float) obj.x+shadoff, (float) obj.y+shadoff, obj.radius, obj.);
+/*            matrix.reset();
             matrix.postTranslate(-coinR, -coinR);
             matrix.postRotate(obj. angle);
             matrix.postTranslate((float) obj.x, (float) obj.y);
-            canvas.drawBitmap(bmp, matrix, bmppaint);
-
-            if (highlight) {
-                if (obj.state < 0) obj.draw(canvas); //TODO - move bitmap and matrix into moveObj OUTLINE IF VOIDED
-                else
-                    //if the coin is within a bed, highlight it. TODO - add a temporary score to the player, or only when motion stopped
-                    if (getBed((int) obj.y) > 0)
-                        canvas.drawCircle((float) obj.x, (float) obj.y, coinR, outlinepaint);
-            }
+            canvas.drawBitmap(bmp, matrix, bmppaint);*/
 
         }
     }
@@ -262,130 +242,20 @@ public class MoonDrawView extends View {
             }
         }
 
-        // if ball in play exits the start zone, then it cannot be touched
-        if (inPlay != null && inPlay.state == 1 && inPlay.y < startZone) inPlay.state = 0;
-
         //if there is no ball, or a ball in play and all motion stops, calc intermediate or final scores and play new ball if final
-        if (inPlay == null || !motion && inPlay.state != 1) {
-
-            //for each coin, determine new potential score
-            for (int f = 0; f < score[0].length; f++) {
-                score[0][f][1] = 0;
-                score[1][f][1] = 0; /* set potential scores to zero TODO - const would be clearer */
-            }
-
-            for (MoveObj obj : objs) {
-                //if the coin is within a bed, score it
-                int bed = getBed((int) obj.y);
-                if (bed > 0 && obj.state >= 0) { //don't include coin if voided. (ie. state is -1
-                    score[playerNum][0][1] += bed; //add the score onto player potential total // used in portsmouth rules
-                    // if already three, increment opponent up to three, else increment player up to three
-                    if (!addPoint(playerNum, bed, true)) addPoint(1 - playerNum, bed, false);
-                    if (potential(score[playerNum][beds + 1]) >= beds) winner = playerNum;
-                    //THIS IS A WIN !!!!! reset all could even break the for loop!
-                    // TODO would be good to have a "scoring" state where the coins and scores are animated
-                }
-            }
-
-            if (--coinsLeft <= 0) {
-                // all coins used up - so end of turn - although in progressive, some could be returned
-                // TODO - if progressive (Oxford) then return some coins
-
-                // potential scores become real scores.
-
-                for (int f = 0; f < score[0].length; f++) {
-                    score[0][f][0] = potential(score[0][f]);
-                    score[1][f][0] = potential(score[1][f]);
-                    score[0][f][1] = 0;
-                    score[1][f][1] = 0; /* set potential scores to zero TODO - const would be clearer */
-                }
-
-                playerNum=1-playerNum;
-                coinsLeft = maxCoins;
-                objs.clear();
-
-
-
-            }
-
-
-            if (winner>=0){
-                Toast.makeText(getContext(), "Won by "+pName[winner], Toast.LENGTH_LONG).show();
-                for (int f = 0; f < score[0].length; f++) {
-                    score[0][f][0] = 0;
-                    score[0][f][1] = 0;
-                    score[1][f][0] = 0;
-                    score[1][f][1] = 0; /* set scores to zero */
-                }
-                playerNum = 0;
-                winner = -1;
-                coinsLeft = maxCoins;
-                objs.clear();
-            }
+        if (inPlay == null) {
 
             // add a new coin - this could be first coin
             // TODO in combat mode we alternate playerNum
             inPlay = new MoveObj(11 + playerNum, coinR, screenW / 2, screenH - bedH, 5, 0);
             inPlay.wallBounce=rebounds; //enable or disable wall bounce TODO - move into constructor
+            objs.add(new MoveObj(99, coinR*5, screenW / 2, screenH /2, 0, 0));
             objs.add(inPlay);
+
             if (sounds) parent.player.play(parent.placeSound,1,1,1,0,1);
         }
 
     }
-
-    private void drawScore(Canvas c, int[] score, float x, float y){
-
-        // draw lines for the points with a horizontal when bed is filled
-        // should perhaps be off the canvas and use other views to handle this.
-
-        int div = bedH/bedScore; // this splits the verts EFF precalc this plus the 1.1f multiple
-        // draw real scores first
-        for (int i = 1; i <= score[0]; i++) {
-            if (i == bedScore) //if this is a closed bed then use horizontal
-                c.drawLine(x + bedH*0.15f, y + bedH * 0.45f, x+bedH*0.85f, y + bedH * 0.55f, outlinepaint);
-            else
-                c.drawLine(x + i * div*01.1f, y + bedH * 0.2f, x + i * div * 0.9f, y + bedH * 0.8f, outlinepaint);
-        }
-        for (int i = score[0]+1; i <= potential(score); i++) {
-            if (i == bedScore) //if this is a closed bed then use horizontal
-                c.drawLine(x + bedH*0.15f, y + bedH * 0.45f, x+bedH*0.85f, y + bedH * 0.55f, linepaint);
-            else
-                c.drawLine(x + i * div*01.1f, y + bedH * 0.2f, x + i * div * 0.9f, y + bedH * 0.8f, linepaint);
-        }
-
-    }
-
-    private int getBed(int pos){
-        if (pos>startZone) return -1; // not even reached first line
-        if ((pos+coinR)< 2*bedH) return 0; // in the endzone
-        if ((pos-coinR)%bedH>coinR) return 0; //overlapping. so no score
-        return (beds+2-((pos-coinR)/bedH));
-    }
-
-    private boolean addPoint(int player, int bed, boolean scorer){
-        // if the bed is full cannot add so return false - point may go to opponent
-        if (potential(score[player][bed]) == bedScore) return false;
-
-        // if the bed will not get filled then add to potential score
-        if (potential(score[player][bed]) < bedScore-1){
-            score[player][bed][1]++;
-            return true;
-        }
-
-        // remaining case is that a bed will get filled. This cannot be allowed if a non-scorer would win.
-        if (!scorer && potential(score[player][beds + 1]) >= beds - 1) return false;
-
-        score[player][bed][1]++;
-        score[player][beds + 1][1]++;
-        return true;
-    }
-
-    private int potential(int[] points){
-        return points[0]+points[1];
-    }
-
-
-
 
     public void saveData() throws IOException {
         File file = new File(getContext().getCacheDir(), "moveObjs");

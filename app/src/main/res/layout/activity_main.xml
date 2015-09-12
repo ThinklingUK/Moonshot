@@ -1,8 +1,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
     android:layout_height="match_parent" tools:context=".MainActivity"
-    android:background="@drawable/woodbg"
-    android:id="@+id/layout">
+                android:id="@+id/layout">
 
     <uk.thinkling.moonshot.MoonDrawView
         android:layout_width="fill_parent"
@@ -52,11 +51,12 @@
 
 
             <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="135dp"
                     android:layout_height="wrap_content"
-                    android:text="Shove Ha&apos;penny"
+                    android:text="Moonshot"
                     android:id="@+id/textView" android:paddingBottom="@dimen/abc_dialog_list_padding_vertical_material"
-                    android:textSize="@dimen/abc_text_size_headline_material"/>
+                    android:textSize="@dimen/abc_text_size_headline_material"
+                    android:gravity="center_horizontal"/>
             <Button
                         android:layout_width="fill_parent"
                         android:layout_height="wrap_content"
