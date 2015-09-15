@@ -31,12 +31,11 @@ public class MoonDrawView extends View {
     /*VARIABLES*/
 
     MoveObj inPlay;
-    List<MoveObj> objs = new ArrayList<>();
+    ArrayList<MoveObj> objs = new ArrayList<>();
     uk.thinkling.physics.CollisionManager collider;
-
     int screenW, screenH, bedH, coinR, startZone;
     int shadoff = 4; //shadow offset TODO - factor of coinR
-    final double gravity = 0, friction = 0.05; //0.07 is shove
+    final double gravity = 0.98, friction = 0.00; //0.07 is shove
     final float coinRatio = 0.33f; // bed to radius ratio (0.33 is 2 thirds)
     final float bedSpace=0.8f; // NB: includes end space and free bed before first line.
     int beds=9, maxCoins=5, bedScore=3;
@@ -80,7 +79,7 @@ public class MoonDrawView extends View {
         screenH = h;
 
         float strokeSize = (w/180);  // NB this is driven by width so set in onSizeChanged
-        shadowpaint.setARGB(64,0,0,0);
+        shadowpaint.setARGB(64, 0, 0, 0);
         linepaint.setColor(Color.parseColor("#CD7F32"));
         linepaint.setStyle(Paint.Style.STROKE);
         linepaint.setStrokeWidth(strokeSize); //TODO set based on screensize
@@ -101,6 +100,7 @@ public class MoonDrawView extends View {
         }
 
         collider = new CollisionManager(w, h, friction, gravity);
+       // collider.addBoundary(w / 3 * 2, h / 3 * 2, w / 2, h / 2); // add a boundary
 
         try {
             restoreData();
@@ -182,7 +182,7 @@ public class MoonDrawView extends View {
 
         for (MoveObj obj : objs) {
             obj.draw(canvas);
-           // canvas.drawCircle((float) obj.x+shadoff, (float) obj.y+shadoff, obj.radius, obj.);
+            // canvas.drawCircle((float) obj.x+shadoff, (float) obj.y+shadoff, obj.radius, obj.);
 /*            matrix.reset();
             matrix.postTranslate(-coinR, -coinR);
             matrix.postRotate(obj. angle);
@@ -190,19 +190,22 @@ public class MoonDrawView extends View {
             canvas.drawBitmap(bmp, matrix, bmppaint);*/
 
         }
+        for (CollisionManager.Boundary bound : collider.boundaries) {
+            canvas.drawCircle((float) bound.x, (float) bound.y, bound.width/2,linepaint );
+        }
     }
 
 
     // this is the method called when recalculating positions
     public void update() {
 
-
+        float volume;
         // handle all the collisions starting at earliest time - if 2nd obj is null, then a wall collision
         // Collision manager also moves the objects.
         collider.collide(objs);
         for (CollisionManager.CollisionRec coll : collider.collisions) {
             //TODO set pitch based on size of the objects.
-            float volume = Math.min((float) coll.impactV / 100, 1); //set the volume based on impact speed
+            volume = Math.min((float) coll.impactV / 100, 1); //set the volume based on impact speed
             if (coll.objb == null) {  //if a wall collision
                 // if a wall collision, play sound and may void the coin
                 if (sounds) parent.player.play(parent.clunkSound, volume, volume, 2, 0, 1);
@@ -221,23 +224,24 @@ public class MoonDrawView extends View {
             //if outside the sidebars and boundary rules are on, then void the coin if already in playzone
             if (bounds && obj.state==0 && (obj.x-coinR<bedH || obj.x+coinR>screenW-bedH)) obj.state=-1;
 
-            if (obj.xSpeed != 0 || obj.ySpeed != 0) {
-                motion = true;
-                // if there is a streamID then adjust volume else start movement sound
-                float volume = Math.min( (float)Math.sqrt(obj.xSpeed*obj.xSpeed+obj.ySpeed*obj.ySpeed) / 50, 1); //set the volume based on impact speed TODO const or calc
+            if (sounds) {
+                if (obj.xSpeed != 0 || obj.ySpeed != 0) {
+                    motion = true;
+                    // if there is a streamID then adjust volume else start movement sound
+                    volume = Math.min((float) Math.sqrt(obj.xSpeed * obj.xSpeed + obj.ySpeed * obj.ySpeed) / 50, 1); //set the volume based on impact speed TODO const or calc
 
-                if (obj.movingStreamID >0) {
-                    parent.player.setVolume(obj.movingStreamID,volume,volume);
-                    //adjust volume
+                    if (obj.movingStreamID > 0) {
+                        parent.player.setVolume(obj.movingStreamID, volume, volume);
+                        //adjust volume
+                    } else {
+                        obj.movingStreamID = parent.player.play(parent.slideSound, volume, volume, 1, -1, 1);
+                    }
                 } else {
-                    if (sounds) obj.movingStreamID = parent.player.play(parent.slideSound, volume, volume, 1, -1, 1);
-                }
-            }
-            else{
-                //stop any playing sound
-                if (obj.movingStreamID >0) {
-                    parent.player.stop(obj.movingStreamID);
-                    obj.movingStreamID=0;
+                    //stop any playing sound
+                    if (obj.movingStreamID > 0) {
+                        parent.player.stop(obj.movingStreamID);
+                        obj.movingStreamID = 0;
+                    }
                 }
             }
         }
@@ -247,9 +251,14 @@ public class MoonDrawView extends View {
 
             // add a new coin - this could be first coin
             // TODO in combat mode we alternate playerNum
-            inPlay = new MoveObj(11 + playerNum, coinR, screenW / 2, screenH - bedH, 5, 0);
+            inPlay = new MoveObj(11 + playerNum, coinR, screenW / 2, screenH /2, 5, 0);
             inPlay.wallBounce=rebounds; //enable or disable wall bounce TODO - move into constructor
-            objs.add(new MoveObj(99, coinR*5, screenW / 2, screenH /2, 0, 0));
+            MoveObj x = new MoveObj(10, screenW / 3, screenW / 2, screenH /2, 0, 0);
+            x.mass *= 100000000;
+            objs.add(x);
+            for (int i = 0; i < maxCoins*4 ; i++) {
+                objs.add(new MoveObj(screenW, screenH));
+            }
             objs.add(inPlay);
 
             if (sounds) parent.player.play(parent.placeSound,1,1,1,0,1);
