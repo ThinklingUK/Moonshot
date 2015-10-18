@@ -33,6 +33,27 @@
                 android:negativeButtonText="@null"
                 android:positiveButtonText="@null" />
 
+        <uk.thinkling.moonshot.ListPreference
+                android:key="pref_gravity"
+                android:title="Gravity"
+                android:defaultValue="0"
+                android:summary="%s"
+                android:entries="@array/pref_physics_list_titles"
+                android:entryValues="@array/pref_physics_list_values"
+                android:negativeButtonText="@null"
+                android:positiveButtonText="@null" />
+
+        <uk.thinkling.moonshot.ListPreference
+                android:key="pref_friction"
+                android:title="Friction"
+                android:defaultValue="0"
+                android:summary="%s"
+                android:entries="@array/pref_physics_list_titles"
+                android:entryValues="@array/pref_physics_list_values"
+                android:negativeButtonText="@null"
+                android:positiveButtonText="@null" />
+
+
 
     </PreferenceCategory>
 

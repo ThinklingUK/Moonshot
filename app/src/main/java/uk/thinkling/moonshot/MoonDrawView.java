@@ -16,8 +16,24 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
+import org.jbox2d.collision.shapes.EdgeShape;
 import uk.thinkling.physics.MoveObj;
 import uk.thinkling.physics.CollisionManager;
+
+
+import org.jbox2d.callbacks.ContactImpulse;
+import org.jbox2d.callbacks.ContactListener;
+import org.jbox2d.collision.Manifold;
+import org.jbox2d.collision.shapes.CircleShape;
+import org.jbox2d.collision.shapes.PolygonShape;
+import org.jbox2d.common.Vec2;
+import org.jbox2d.dynamics.Body;
+import org.jbox2d.dynamics.BodyDef;
+import org.jbox2d.dynamics.BodyType;
+import org.jbox2d.dynamics.FixtureDef;
+import org.jbox2d.dynamics.World;
+import org.jbox2d.dynamics.contacts.Contact;
 
 
 
@@ -35,7 +51,7 @@ public class MoonDrawView extends View {
     uk.thinkling.physics.CollisionManager collider;
     int screenW, screenH, bedH, coinR, startZone;
     int shadoff = 4; //shadow offset TODO - factor of coinR
-    final double gravity = 0.98, friction = 0.00; //0.07 is shove
+    double gravity = 1, friction = 0.00; //0.07 is shove friction, 0.98 is gravity
     final float coinRatio = 0.33f; // bed to radius ratio (0.33 is 2 thirds)
     final float bedSpace=0.8f; // NB: includes end space and free bed before first line.
     int beds=9, maxCoins=5, bedScore=3;
@@ -107,10 +123,6 @@ public class MoonDrawView extends View {
         } catch (Exception ex){ //could be FileNotFoundException, IOException, ClassNotFoundException
             //Log.e("deserialise",ex.toString());
         }
-
-        //TODO - if beds changed, then stored object radius may be inaccurate
-        //TODO if #beds changed (ie. in prefs) and mismatch with saved data, reset score data
-
 
 
 
@@ -257,7 +269,7 @@ public class MoonDrawView extends View {
             x.mass *= 100000000;
             objs.add(x);
             for (int i = 0; i < maxCoins*4 ; i++) {
-                objs.add(new MoveObj(screenW, screenH));
+                objs.add(new MoveObj(6, screenW, screenH));
             }
             objs.add(inPlay);
 
@@ -308,6 +320,8 @@ public class MoonDrawView extends View {
 
         maxCoins = Integer.parseInt(preferences.getString("pref_maxcoins", "5"));
         bedScore = Integer.parseInt(preferences.getString("pref_bedscore", "3"));
+        gravity =  Integer.parseInt(preferences.getString("pref_gravity", "0"))/100;
+        friction =  Integer.parseInt(preferences.getString("pref_friction","0"))/100;
         beds = Integer.parseInt(preferences.getString("pref_beds", "9"));
 
         //Number of beds then affects bed size, coin size etc.
@@ -327,6 +341,128 @@ public class MoonDrawView extends View {
         //Also if bedScore changes then scoring might fail - best to restart in these cases - or all cases?
         if (score[0].length!=beds+2) score = new int[2][beds+2][2];
 
+        jbox();
+
+    }
+
+
+
+
+
+
+    public void jbox( )
+    {
+        // Define the gravity vector.
+        Vec2 gravity = new Vec2( 0, -10 );
+
+        // Initialise the World.
+        World world = new World( gravity);
+
+        // Set a contact listener.
+        world.setContactListener( new ContactListener()
+        {
+            @Override
+            public void preSolve( Contact arg0, Manifold arg1 )
+            {
+            }
+
+            @Override
+            public void postSolve( Contact arg0, ContactImpulse arg1 )
+            {
+            }
+
+            @Override
+            public void endContact( Contact arg0 )
+            {
+            }
+
+            @Override
+            public void beginContact( Contact arg0 )
+            {
+                // Ball collided with container!
+                System.out.println( "Bounce" );
+            }
+        } );
+
+        // Create the ground (Something for dynamic bodies to collide with).
+        {
+            BodyDef groundBodyDef = new BodyDef();
+            groundBodyDef.position.set( 0, 0 );
+            groundBodyDef.type = BodyType.STATIC;
+
+            // Create the Body in the World.
+            Body ground = world.createBody( groundBodyDef );
+
+            // Create the fixtures (physical aspects) of the ground body.
+            FixtureDef groundEdgeFixtureDef = new FixtureDef();
+            groundEdgeFixtureDef.density = 1.0f;
+            groundEdgeFixtureDef.friction = 1.0f;
+            groundEdgeFixtureDef.restitution = 0.4f;
+
+            EdgeShape groundEdge = new EdgeShape();
+            groundEdgeFixtureDef.shape = groundEdge;
+
+            // We will create the ground as a box. Creating each edge of the box
+            // in turn. The reason we don't use groundEdge.setAsBox() method is
+            // because this creates a solid fixture which does not allow other
+            // bodies to exist within it. When we create the ground with edges
+            // this will give us a nice container to have our bodies bounce
+            // around in.
+
+            // Bottom Edge.
+            groundEdge.set(new Vec2(0, 0), new Vec2(10, 0));
+            ground.createFixture( groundEdgeFixtureDef );
+
+            // Reuse the PolygonShape and FixtureDef objects since they are only
+            // used to create objects in the World. Think of them as being a
+            // cookie cutter. Once you make cut a cookie it does matter what
+            // happens to the cookie cutter after.
+
+            // Right Edge.
+            groundEdge.set( new Vec2( 10, 0 ), new Vec2( 10, 10 ) );
+            ground.createFixture( groundEdgeFixtureDef );
+
+            // Top Edge.
+            groundEdge.set( new Vec2( 10, 10 ), new Vec2( 0, 10 ) );
+            ground.createFixture( groundEdgeFixtureDef );
+
+            // Left Edge.
+            groundEdge.set( new Vec2( 0, 10 ), new Vec2( 0, 0 ) );
+            ground.createFixture( groundEdgeFixtureDef );
+        }
+
+        // Create a Ball.
+        BodyDef ballBodyDef = new BodyDef();
+        ballBodyDef.type = BodyType.DYNAMIC;
+        ballBodyDef.position.set( 5, 5 ); // Centre of the ground box.
+
+        // Create the body for the ball within the World.
+        Body ball = world.createBody( ballBodyDef );
+
+        // Create the actual fixture representing the box.
+        CircleShape ballShape = new CircleShape();
+        ballShape.m_radius = 0.5f; // Diameter of 1m.
+        // ballShape.m_p is the offset relative to body. Default of (0,0)
+
+        FixtureDef ballFixtureDef = new FixtureDef();
+        ballFixtureDef.density = 1.0f; // Must have a density or else it won't
+        // be affected by gravity.
+        ballFixtureDef.restitution = 0.8f; // Define how bouncy the ball is.
+        ballFixtureDef.friction = 0.2f;
+        ballFixtureDef.shape = ballShape;
+
+        // Add the fixture to the ball body.
+        ball.createFixture( ballFixtureDef );
+
+        // Do a few steps of simulation.
+        for( int i = 0; i < 10; ++i )
+        {
+            System.out.println( ball.getPosition() );
+
+            // Advance the world 1/6 of a second into the future.
+            // Typically you should use 1/60 of a second for simulating physics
+            // though...
+            world.step( 1 / 6f, 8, 3 );
+        }
     }
 }
-

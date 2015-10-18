@@ -29,8 +29,8 @@
         <item>Ten</item>
         <item>Eleven</item>
         <item>Twelve</item>
-
     </string-array>
+
     <string-array name="pref_beds_list_values">
         <item>1</item>
         <item>2</item>
@@ -45,6 +45,28 @@
         <item>11</item>
         <item>12</item>
     </string-array>
+
+    <string-array name="pref_physics_list_titles">
+        <item>full minus</item>
+        <item>half minus</item>
+        <item>zero</item>
+        <item>a little</item>
+        <item>half</item>
+        <item>a lot</item>
+        <item>full</item>
+    </string-array>
+
+    <string-array name="pref_physics_list_values">
+        <item>-100</item>
+        <item>-50</item>
+        <item>0</item>
+        <item>3</item>
+        <item>50</item>
+        <item>97</item>
+        <item>100</item>
+    </string-array>
+
+
 
     <!-- Example settings for Data & Sync -->
     <string name="pref_header_data_sync">Data &amp; sync</string>
